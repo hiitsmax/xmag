@@ -295,7 +295,7 @@ def _render_article_header(article: ArticleContent, article_index: int, total_ar
     return "\n".join(
         [
             r"\vspace{1.8mm}",
-            r"\noindent\color{black!45}\rule{\linewidth}{0.55pt}",
+            r"\noindent\color{black}\rule{\linewidth}{0.55pt}",
             r"\vspace{1.2mm}",
             rf"\noindent\textbf{{\large Article {article_index}/{total_articles}}}\hfill\texttt{{{article.status_id}}}\\",
             rf"\textbf{{{latex_escape(article.author_name)}}} {latex_escape(article.author_handle)}\\",
