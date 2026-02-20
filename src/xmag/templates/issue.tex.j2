@@ -1,0 +1,33 @@
+\\documentclass[10pt]{{article}}
+\\usepackage[{{ paper_option }},inner={{ inner_margin_mm }}mm,outer={{ outer_margin_mm }}mm,top={{ top_margin_mm }}mm,bottom={{ bottom_margin_mm }}mm]{{geometry}}
+\\usepackage{{multicol}}
+\\usepackage{{graphicx}}
+\\usepackage{{hyperref}}
+\\usepackage{{xcolor}}
+\\usepackage{{fancyhdr}}
+\\usepackage[T1]{{fontenc}}
+\\usepackage[utf8]{{inputenc}}
+\\setlength{{\\columnsep}}{{{{ column_gap_mm }}mm}}
+\\pagestyle{{fancy}}
+\\fancyhf{{}}
+\\rhead{{xmag issue}}
+\\lhead{{X Article Digest}}
+\\cfoot{{\\thepage}}
+\\setlength{{\\parindent}}{{0pt}}
+\\setlength{{\\parskip}}{{0.8em}}
+
+\\begin{{document}}
+{% for block in body_blocks %}
+{{ block }}
+{% endfor %}
+{% if include_appendix and appendix_images %}
+\\newpage
+\\section*{{Image Appendix}}
+{% for image in appendix_images %}
+\\begin{{center}}
+\\includegraphics[width=0.98\\textwidth]{{\\detokenize{{{{ image.local_path.resolve().as_posix() }}}}}}
+\\end{{center}}
+\\vspace{{3mm}}
+{% endfor %}
+{% endif %}
+\\end{{document}}
