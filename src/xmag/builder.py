@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Iterator
 
 from playwright.sync_api import sync_playwright
 
@@ -13,12 +14,12 @@ from xmag.config import LayoutConfig, PaginationMode
 from xmag.extractor import ArticleExtractionError, extract_article
 from xmag.input import load_url_file
 from xmag.media import download_media
-from xmag.models import ArticleContent, BuildReport
+from xmag.models import ArticleContent, BuildReport, LocalMedia
 from xmag.renderer import render_issue_tex
 
 
 @contextmanager
-def _build_workspace(output: Path, keep_tex: bool):
+def _build_workspace(output: Path, keep_tex: bool) -> Iterator[Path]:
     if keep_tex:
         workspace = output.parent / f"{output.stem}_build"
         workspace.mkdir(parents=True, exist_ok=True)
@@ -102,7 +103,7 @@ def build_issue(
     report = BuildReport(total=total, succeeded=len(contents), failed=len(failures), failures=failures)
 
     with _build_workspace(output, keep_tex=keep_tex) as workspace:
-        media_map: dict[str, list] = {}
+        media_map: dict[str, list[LocalMedia]] = {}
         media_root = workspace / "media"
         for article in contents:
             media_map[article.status_id] = download_media(

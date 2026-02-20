@@ -49,10 +49,13 @@ def _dedupe_preserve(items: list[str]) -> list[str]:
 
 def _extract_author(raw_author: str) -> tuple[str, str]:
     lines = [line.strip() for line in raw_author.splitlines() if line.strip()]
-    author_name = lines[0] if lines else "Unknown"
 
     match = re.search(r"@[A-Za-z0-9_]+", raw_author)
     author_handle = match.group(0) if match else "@unknown"
+
+    candidate_name = lines[0] if lines else "Unknown"
+    candidate_name = re.sub(r"@[A-Za-z0-9_]+", "", candidate_name).strip(" -|·")
+    author_name = candidate_name if candidate_name else "Unknown"
     return author_name, author_handle
 
 

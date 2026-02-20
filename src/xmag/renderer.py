@@ -13,26 +13,23 @@ from xmag.config import ImageLayoutMode, LayoutConfig, PaperSize, PaginationMode
 from xmag.models import ArticleContent, LocalMedia
 
 _LATEX_ESCAPE_MAP = {
-    "\\": r"\\textbackslash{}",
-    "&": r"\\&",
-    "%": r"\\%",
-    "$": r"\\$",
-    "#": r"\\#",
-    "_": r"\\_",
-    "{": r"\\{",
-    "}": r"\\}",
-    "~": r"\\textasciitilde{}",
-    "^": r"\\textasciicircum{}",
+    "\\": r"\textbackslash{}",
+    "&": r"\&",
+    "%": r"\%",
+    "$": r"\$",
+    "#": r"\#",
+    "_": r"\_",
+    "{": r"\{",
+    "}": r"\}",
+    "~": r"\textasciitilde{}",
+    "^": r"\textasciicircum{}",
 }
 
 
 def latex_escape(value: str) -> str:
     """Escape LaTeX special characters in user/content text."""
 
-    escaped = value
-    for source, target in _LATEX_ESCAPE_MAP.items():
-        escaped = escaped.replace(source, target)
-    return escaped
+    return "".join(_LATEX_ESCAPE_MAP.get(char, char) for char in value)
 
 
 def _paper_option(paper: PaperSize) -> str:

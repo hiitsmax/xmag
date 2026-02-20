@@ -23,6 +23,7 @@ dev = [
   "pytest-cov>=5,<6",
   "ruff>=0.6,<1",
   "mypy>=1.11,<2",
+  "types-python-dateutil>=2.9.0",
 ]
 
 [project.scripts]
