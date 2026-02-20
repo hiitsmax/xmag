@@ -30,23 +30,23 @@ https://twitter.com/another/status/9876543210
 Generate a PDF:
 
 ```bash
-xmag --url-file /absolute/path/urls.txt --output /absolute/path/magazine.pdf
+xmag build --url-file /absolute/path/urls.txt --output /absolute/path/magazine.pdf
 ```
 
 ## CLI Examples
 
 ```bash
 # Force page break between articles
-xmag --url-file urls.txt --output issue.pdf --pagination newpage
+xmag build --url-file urls.txt --output issue.pdf --pagination newpage
 
 # Split mode: one PDF per article
-xmag --url-file urls.txt --output issue.pdf --pagination split
+xmag build --url-file urls.txt --output issue.pdf --pagination split
 
 # Inline images inside columns
-xmag --url-file urls.txt --output issue.pdf --image-layout inline
+xmag build --url-file urls.txt --output issue.pdf --image-layout inline
 
 # Use authenticated browser state for restricted content
-xmag --url-file urls.txt --output issue.pdf --storage-state /absolute/path/state.json
+xmag build --url-file urls.txt --output issue.pdf --storage-state /absolute/path/state.json
 ```
 
 ## Defaults

@@ -13,6 +13,11 @@ from xmag.config import ImageLayoutMode, LayoutConfig, PaginationMode, PaperSize
 app = typer.Typer(help="Convert X article URLs into a three-column LaTeX-style PDF.", no_args_is_help=True)
 
 
+@app.callback()
+def main() -> None:
+    """xmag command group."""
+
+
 @app.command()
 def build(
     url_file: Path = typer.Option(..., exists=True, readable=True, dir_okay=False),
