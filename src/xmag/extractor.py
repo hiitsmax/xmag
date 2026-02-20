@@ -27,6 +27,20 @@ class ArticleNotFoundError(ArticleExtractionError):
     """Raised when article content cannot be found on the page."""
 
 
+_METRIC_LINE_RE = re.compile(r"^[\d,.]+(?:[KMBT]|[KMBT]\+)?$", re.IGNORECASE)
+_STOP_AT_LINE_RE = re.compile(
+    r"^(Want to publish your own Article\?|Upgrade to Premium|Read\s+\d+\s+replies)$",
+    re.IGNORECASE,
+)
+_TIMESTAMP_LINE_RE = re.compile(r"^\d{1,2}:\d{2}\s?(AM|PM)\s*·", re.IGNORECASE)
+_ARTIFACT_PATTERNS = [
+    re.compile(r"if\s*\(!alreadyRequested\)\s*\{[\s\S]*?\}", re.IGNORECASE),
+    re.compile(r"postComment\s*\([\s\S]*?\)", re.IGNORECASE),
+    re.compile(r"@review-harness:[^\s]+", re.IGNORECASE),
+    re.compile(r"\$\{trigger\}", re.IGNORECASE),
+]
+
+
 def _to_datetime(raw_timestamp: str | None) -> datetime | None:
     if not raw_timestamp:
         return None
@@ -59,24 +73,109 @@ def _extract_author(raw_author: str) -> tuple[str, str]:
     return author_name, author_handle
 
 
-def _extract_text_from_locator(article_locator: "Locator") -> str:
-    text_nodes = article_locator.locator('[data-testid="tweetText"]')
-    texts: list[str] = []
+def _sanitize_text(raw_text: str, author_name: str, author_handle: str) -> str:
+    sanitized_source = raw_text
+    for pattern in _ARTIFACT_PATTERNS:
+        sanitized_source = pattern.sub(" ", sanitized_source)
 
-    for index in range(text_nodes.count()):
-        text = text_nodes.nth(index).inner_text().strip()
-        if text:
-            texts.append(text)
+    author_prefix = re.compile(
+        rf"^\s*{re.escape(author_name)}\s+{re.escape(author_handle)}(?:\s+[\d.,]+(?:[KMBT])?)*\s+",
+        re.IGNORECASE,
+    )
+    sanitized_source = author_prefix.sub("", sanitized_source)
 
-    if not texts:
-        fallback_text = article_locator.inner_text().strip()
-        if fallback_text:
-            texts.append(fallback_text)
+    lines = [line.rstrip() for line in sanitized_source.splitlines()]
+    cleaned: list[str] = []
 
-    joined = "\n\n".join(_dedupe_preserve(texts)).strip()
-    if not joined:
-        raise ArticleExtractionError("Extracted article text is empty")
-    return joined
+    author_name_norm = author_name.strip().lower()
+    author_handle_norm = author_handle.strip().lower()
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            cleaned.append("")
+            continue
+
+        if _STOP_AT_LINE_RE.match(stripped) or _TIMESTAMP_LINE_RE.match(stripped):
+            break
+
+        if stripped == "Views" or stripped == "·":
+            break
+
+        lower = stripped.lower()
+        if (
+            lower == author_name_norm
+            or lower == author_handle_norm
+            or lower == f"{author_name_norm} {author_handle_norm}".strip()
+        ):
+            continue
+
+        if _METRIC_LINE_RE.fullmatch(stripped):
+            continue
+
+        cleaned.append(stripped)
+
+    # Collapse repeated blank lines but preserve paragraph intent.
+    collapsed: list[str] = []
+    previous_blank = False
+    for line in cleaned:
+        is_blank = line == ""
+        if is_blank and previous_blank:
+            continue
+        collapsed.append(line)
+        previous_blank = is_blank
+
+    return "\n".join(collapsed).strip()
+
+
+def _extract_text_from_locator(article_locator: "Locator", author_name: str, author_handle: str) -> str:
+    selector_candidates = [
+        '[data-testid="tweetText"]',
+        "div[lang]",
+        'div[dir="auto"]',
+    ]
+
+    best_sanitized = ""
+
+    for selector in selector_candidates:
+        nodes = article_locator.locator(selector)
+        if nodes.count() == 0:
+            continue
+
+        collected: list[str] = []
+        for index in range(min(nodes.count(), 20)):
+            candidate = nodes.nth(index).inner_text().strip()
+            if candidate and len(candidate) >= 12:
+                collected.append(candidate)
+
+        if not collected:
+            continue
+
+        if selector == '[data-testid="tweetText"]':
+            candidate_text = "\n\n".join(_dedupe_preserve(collected))
+        else:
+            candidate_text = max(collected, key=len)
+
+        sanitized = _sanitize_text(candidate_text, author_name, author_handle)
+        if sanitized:
+            if selector == '[data-testid="tweetText"]' and len(sanitized) >= 40:
+                return sanitized
+            if len(sanitized) > len(best_sanitized):
+                best_sanitized = sanitized
+
+    try:
+        fallback_inner_text = article_locator.inner_text().strip()
+    except Exception:
+        fallback_inner_text = ""
+
+    if fallback_inner_text:
+        sanitized_inner = _sanitize_text(fallback_inner_text, author_name, author_handle)
+        if len(sanitized_inner) > len(best_sanitized):
+            best_sanitized = sanitized_inner
+
+    if best_sanitized:
+        return best_sanitized
+    raise ArticleExtractionError("Could not find usable text nodes in article")
 
 
 def _find_article_locator(page: "Page", status_id: str, timeout_ms: int) -> "Locator":
@@ -127,7 +226,7 @@ def extract_article(
         if time_nodes.count() > 0:
             raw_timestamp = time_nodes.first.get_attribute("datetime")
 
-        text = _extract_text_from_locator(article_locator)
+        text = _extract_text_from_locator(article_locator, author_name, author_handle)
         media_urls = _extract_media_urls(article_locator)
 
         return ArticleContent(

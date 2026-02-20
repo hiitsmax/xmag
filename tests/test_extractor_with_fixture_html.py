@@ -24,6 +24,8 @@ def test_extract_article_with_fixture_html() -> None:
         assert content.author_name == "Alice Example"
         assert content.author_handle == "@alice"
         assert "fixture article" in content.text
+        assert "alreadyRequested" not in content.text
+        assert not content.text.startswith("Alice Example")
         assert len(content.media_urls) == 2
 
         context.close()
