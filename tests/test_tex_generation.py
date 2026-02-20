@@ -87,3 +87,11 @@ def test_render_issue_tex_renders_inline_markdown(tmp_path: Path) -> None:
 
     assert r"\textbf{this}" in tex
     assert r"\href{https://example.com}{source}" in tex
+
+
+def test_render_issue_tex_supports_blank_first_page_option(tmp_path: Path) -> None:
+    config = LayoutConfig(blank_first_page=True)
+    tex = render_issue_tex(_sample_contents(), _media_map(tmp_path), config)
+
+    assert r"\thispagestyle{empty}" in tex
+    assert r"\null" in tex

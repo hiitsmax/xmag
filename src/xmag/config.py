@@ -36,6 +36,7 @@ class LayoutConfig(BaseModel):
     column_gap_mm: float = Field(default=4.0, gt=0)
     pagination: PaginationMode = PaginationMode.NEWPAGE
     image_layout: ImageLayoutMode = ImageLayoutMode.INLINE
+    blank_first_page: bool = False
 
     @model_validator(mode="after")
     def validate_margin_relationship(self) -> "LayoutConfig":

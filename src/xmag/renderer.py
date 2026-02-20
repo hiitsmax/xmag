@@ -430,6 +430,7 @@ def render_issue_tex(
         top_margin_mm=config.top_margin_mm,
         bottom_margin_mm=config.bottom_margin_mm,
         column_gap_mm=config.column_gap_mm,
+        blank_first_page=config.blank_first_page,
         body_blocks=blocks,
         appendix_images=appendix_images,
         include_appendix=config.image_layout == ImageLayoutMode.APPENDIX,

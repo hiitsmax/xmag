@@ -44,6 +44,11 @@
 }
 
 \begin{document}
+{% if blank_first_page %}
+\thispagestyle{empty}
+\null
+\newpage
+{% endif %}
 {% for block in body_blocks %}
 {{ block }}
 {% endfor %}
