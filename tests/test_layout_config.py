@@ -10,8 +10,8 @@ def test_layout_config_defaults() -> None:
     assert config.columns == 3
     assert config.outer_margin_mm == 4.0
     assert config.inner_margin_mm == 9.0
-    assert config.pagination == PaginationMode.CONTINUOUS
-    assert config.image_layout == ImageLayoutMode.SPAN
+    assert config.pagination == PaginationMode.NEWPAGE
+    assert config.image_layout == ImageLayoutMode.INLINE
 
 
 def test_layout_config_requires_inner_margin_larger_than_outer() -> None:

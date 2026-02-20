@@ -34,8 +34,8 @@ class LayoutConfig(BaseModel):
     top_margin_mm: float = Field(default=10.0, gt=0)
     bottom_margin_mm: float = Field(default=10.0, gt=0)
     column_gap_mm: float = Field(default=4.0, gt=0)
-    pagination: PaginationMode = PaginationMode.CONTINUOUS
-    image_layout: ImageLayoutMode = ImageLayoutMode.SPAN
+    pagination: PaginationMode = PaginationMode.NEWPAGE
+    image_layout: ImageLayoutMode = ImageLayoutMode.INLINE
 
     @model_validator(mode="after")
     def validate_margin_relationship(self) -> "LayoutConfig":

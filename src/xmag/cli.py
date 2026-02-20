@@ -22,8 +22,8 @@ def main() -> None:
 def build(
     url_file: Path = typer.Option(..., exists=True, readable=True, dir_okay=False),
     output: Path = typer.Option(..., dir_okay=False),
-    pagination: PaginationMode = typer.Option(PaginationMode.CONTINUOUS),
-    image_layout: ImageLayoutMode = typer.Option(ImageLayoutMode.SPAN),
+    pagination: PaginationMode = typer.Option(PaginationMode.NEWPAGE),
+    image_layout: ImageLayoutMode = typer.Option(ImageLayoutMode.INLINE),
     paper: PaperSize = typer.Option(PaperSize.A4),
     columns: int = typer.Option(3, min=1, max=6),
     outer_margin_mm: float = typer.Option(4.0),
