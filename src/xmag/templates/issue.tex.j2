@@ -49,6 +49,16 @@
 \null
 \newpage
 {% endif %}
+{% if include_index_page and index_entries %}
+\section*{Index}
+\begin{enumerate}
+{% for entry in index_entries %}
+\item \hyperref[{{ entry.label }}]{\textbf{Article {{ entry.article_num }}} -- {{ entry.author }}} \dotfill \pageref{ {{- entry.label -}} }\\
+{\footnotesize {{ entry.title }}}
+{% endfor %}
+\end{enumerate}
+\newpage
+{% endif %}
 {% for block in body_blocks %}
 {{ block }}
 {% endfor %}

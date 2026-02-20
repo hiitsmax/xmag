@@ -95,3 +95,12 @@ def test_render_issue_tex_supports_blank_first_page_option(tmp_path: Path) -> No
 
     assert r"\thispagestyle{empty}" in tex
     assert r"\null" in tex
+
+
+def test_render_issue_tex_supports_index_page_option(tmp_path: Path) -> None:
+    config = LayoutConfig(include_index_page=True)
+    tex = render_issue_tex(_sample_contents(), _media_map(tmp_path), config)
+
+    assert r"\section*{Index}" in tex
+    assert "Article 1" in tex
+    assert r"\pageref{article-111}" in tex

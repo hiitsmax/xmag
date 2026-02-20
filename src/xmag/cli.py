@@ -32,6 +32,7 @@ def build(
     bottom_margin_mm: float = typer.Option(10.0),
     column_gap_mm: float = typer.Option(4.0),
     blank_first_page: bool = typer.Option(False, "--blank-first-page/--no-blank-first-page"),
+    index_page: bool = typer.Option(False, "--index-page/--no-index-page"),
     headless: bool = typer.Option(True, "--headless/--no-headless"),
     storage_state: Path | None = typer.Option(None, exists=True, dir_okay=False),
     timeout_seconds: int = typer.Option(30, min=5, max=180),
@@ -52,6 +53,7 @@ def build(
             pagination=pagination,
             image_layout=image_layout,
             blank_first_page=blank_first_page,
+            include_index_page=index_page,
         )
     except ValidationError as exc:
         typer.echo(str(exc), err=True)

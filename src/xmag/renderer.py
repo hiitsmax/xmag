@@ -100,6 +100,23 @@ def _latex_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "/")
 
 
+def _article_label(status_id: str) -> str:
+    return f"article-{status_id}"
+
+
+def _article_index_title(article: ArticleContent) -> str:
+    for line in article.text.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        stripped = re.sub(r"^#{1,3}\s+", "", stripped)
+        compact = re.sub(r"\s+", " ", stripped)
+        if len(compact) > 120:
+            return f"{compact[:117]}..."
+        return compact
+    return "Untitled"
+
+
 def _expand_paragraph_chunks(segment: str) -> list[str]:
     stripped_segment = segment.strip("\n")
     if not stripped_segment:
@@ -286,7 +303,12 @@ def _render_content_blocks(text: str) -> list[str]:
     return rendered
 
 
-def _render_article_header(article: ArticleContent, article_index: int, total_articles: int) -> str:
+def _render_article_header(
+    article: ArticleContent,
+    article_index: int,
+    total_articles: int,
+    article_label: str,
+) -> str:
     parsed = urlparse(article.url)
     source_label = f"{parsed.netloc}{parsed.path}"
     if len(source_label) > 44:
@@ -297,6 +319,8 @@ def _render_article_header(article: ArticleContent, article_index: int, total_ar
             r"\vspace{1.8mm}",
             r"\noindent\color{black}\rule{\linewidth}{0.55pt}",
             r"\vspace{1.2mm}",
+            r"\phantomsection",
+            rf"\label{{{article_label}}}",
             rf"\noindent\textbf{{\large Article {article_index}/{total_articles}}}\hfill\texttt{{{article.status_id}}}\\",
             rf"\textbf{{{latex_escape(article.author_name)}}} {latex_escape(article.author_handle)}\\",
             rf"\textit{{Published:}} {latex_escape(_date_display(article.published_at))}\\",
@@ -354,8 +378,9 @@ def _article_block(
     *,
     article_index: int,
     total_articles: int,
+    article_label: str,
 ) -> tuple[str, list[LocalMedia]]:
-    header = _render_article_header(article, article_index, total_articles)
+    header = _render_article_header(article, article_index, total_articles, article_label)
     content_blocks = _render_content_blocks(article.text)
 
     if config.image_layout == ImageLayoutMode.INLINE:
@@ -404,14 +429,25 @@ def render_issue_tex(
 
     blocks: list[str] = []
     appendix_images: list[LocalMedia] = []
+    index_entries: list[dict[str, str]] = []
 
     for index, article in enumerate(contents, start=1):
+        label = _article_label(article.status_id)
+        index_entries.append(
+            {
+                "label": label,
+                "article_num": str(index),
+                "author": latex_escape(article.author_name),
+                "title": _render_inline_markup(_article_index_title(article)),
+            }
+        )
         body_block, appendix = _article_block(
             article,
             media_map.get(article.status_id, []),
             config,
             article_index=index,
             total_articles=len(contents),
+            article_label=label,
         )
         blocks.append(body_block)
         appendix_images.extend(appendix)
@@ -431,6 +467,8 @@ def render_issue_tex(
         bottom_margin_mm=config.bottom_margin_mm,
         column_gap_mm=config.column_gap_mm,
         blank_first_page=config.blank_first_page,
+        include_index_page=config.include_index_page,
+        index_entries=index_entries,
         body_blocks=blocks,
         appendix_images=appendix_images,
         include_appendix=config.image_layout == ImageLayoutMode.APPENDIX,

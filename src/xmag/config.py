@@ -37,6 +37,7 @@ class LayoutConfig(BaseModel):
     pagination: PaginationMode = PaginationMode.NEWPAGE
     image_layout: ImageLayoutMode = ImageLayoutMode.INLINE
     blank_first_page: bool = False
+    include_index_page: bool = False
 
     @model_validator(mode="after")
     def validate_margin_relationship(self) -> "LayoutConfig":

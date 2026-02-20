@@ -45,6 +45,9 @@ xmag build --url-file urls.txt --output issue.pdf --pagination split
 # Inline images inside columns
 xmag build --url-file urls.txt --output issue.pdf --image-layout inline
 
+# Add a blank first page and an index page
+xmag build --url-file urls.txt --output issue.pdf --blank-first-page --index-page
+
 # Use authenticated browser state for restricted content
 xmag build --url-file urls.txt --output issue.pdf --storage-state /absolute/path/state.json
 ```
@@ -57,8 +60,8 @@ xmag build --url-file urls.txt --output issue.pdf --storage-state /absolute/path
 - Inner margin: `9mm`
 - Top/bottom margins: `10mm`
 - Column gap: `4mm`
-- Pagination: `continuous`
-- Image layout: `span`
+- Pagination: `newpage`
+- Image layout: `inline`
 
 ## Development
 

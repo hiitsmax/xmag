@@ -13,6 +13,7 @@ def test_layout_config_defaults() -> None:
     assert config.pagination == PaginationMode.NEWPAGE
     assert config.image_layout == ImageLayoutMode.INLINE
     assert config.blank_first_page is False
+    assert config.include_index_page is False
 
 
 def test_layout_config_requires_inner_margin_larger_than_outer() -> None:
