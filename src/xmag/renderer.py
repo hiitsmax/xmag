@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from importlib.resources import files
 from pathlib import Path
+from urllib.parse import urlparse
 
 from jinja2 import Environment
 
@@ -30,9 +31,13 @@ _CODE_FENCE_RE = re.compile(r"```(?P<lang>[A-Za-z0-9_+-]*)\n(?P<code>[\s\S]*?)``
 _ULIST_RE = re.compile(r"^[-*]\s+")
 _OLIST_RE = re.compile(r"^\d+[.)]\s+")
 _HEADING_RE = re.compile(r"^(#{1,3})\s+(.*)$")
+_TITLE_HEADING_RE = re.compile(r"^(chapter\s+\d+[:.]|conclusion$|appendix[:.]?)", re.IGNORECASE)
 _COMMAND_LINE_RE = re.compile(
     r"^(?:\$|npm\s+|pnpm\s+|yarn\s+|uv\s+|python\s+|pip\s+|git\s+|npx\s+|node\s+|curl\s+|bash\s+|sh\s+|export\s+|set\s+)",
     re.IGNORECASE,
+)
+_INLINE_MARKUP_RE = re.compile(
+    r"\[([^\]]+)\]\((https?://[^)\s]+)\)|\*\*([^*]+)\*\*|`([^`]+)`|\*([^*]+)\*"
 )
 
 
@@ -51,6 +56,34 @@ def latex_escape(value: str) -> str:
     return "".join(_LATEX_ESCAPE_MAP.get(char, char) for char in value)
 
 
+def _render_inline_markup(value: str) -> str:
+    rendered: list[str] = []
+    cursor = 0
+
+    for match in _INLINE_MARKUP_RE.finditer(value):
+        rendered.append(latex_escape(value[cursor : match.start()]))
+
+        link_text = match.group(1)
+        link_url = match.group(2)
+        bold_text = match.group(3)
+        code_text = match.group(4)
+        italic_text = match.group(5)
+
+        if link_text is not None and link_url is not None:
+            rendered.append(rf"\href{{{link_url}}}{{{latex_escape(link_text)}}}")
+        elif bold_text is not None:
+            rendered.append(rf"\textbf{{{latex_escape(bold_text)}}}")
+        elif code_text is not None:
+            rendered.append(rf"\texttt{{{latex_escape(code_text)}}}")
+        elif italic_text is not None:
+            rendered.append(rf"\emph{{{latex_escape(italic_text)}}}")
+
+        cursor = match.end()
+
+    rendered.append(latex_escape(value[cursor:]))
+    return "".join(rendered)
+
+
 def _paper_option(paper: PaperSize) -> str:
     if paper == PaperSize.A4:
         return "a4paper"
@@ -67,9 +100,36 @@ def _latex_path(path: Path) -> str:
     return str(path.resolve()).replace("\\", "/")
 
 
+def _expand_paragraph_chunks(segment: str) -> list[str]:
+    stripped_segment = segment.strip("\n")
+    if not stripped_segment:
+        return []
+
+    if "\n\n" in stripped_segment:
+        base_chunks = [chunk.strip("\n") for chunk in re.split(r"\n{2,}", stripped_segment) if chunk.strip()]
+    else:
+        base_chunks = [stripped_segment]
+
+    expanded_chunks: list[str] = []
+    for chunk in base_chunks:
+        lines = [line.strip() for line in chunk.splitlines() if line.strip()]
+        if len(lines) <= 1:
+            expanded_chunks.extend(lines or [chunk.strip()])
+            continue
+
+        average_length = sum(len(line) for line in lines) / len(lines)
+        max_length = max(len(line) for line in lines)
+        if average_length > 140 or max_length > 220:
+            expanded_chunks.extend(lines)
+        else:
+            expanded_chunks.append(" ".join(lines))
+
+    return [chunk for chunk in expanded_chunks if chunk]
+
+
 def _parse_plain_text_segment(segment: str) -> list[RenderBlock]:
     blocks: list[RenderBlock] = []
-    paragraph_chunks = [chunk.strip("\n") for chunk in re.split(r"\n{2,}", segment) if chunk.strip()]
+    paragraph_chunks = _expand_paragraph_chunks(segment)
 
     for chunk in paragraph_chunks:
         lines = [line.strip() for line in chunk.splitlines() if line.strip()]
@@ -83,6 +143,12 @@ def _parse_plain_text_segment(segment: str) -> list[RenderBlock]:
                 blocks.append(
                     RenderBlock(kind="heading", body=heading_match.group(2).strip(), language=str(level))
                 )
+                continue
+
+        if len(lines) == 1:
+            line = lines[0]
+            if _TITLE_HEADING_RE.match(line) or (line.isupper() and 3 <= len(line) <= 90):
+                blocks.append(RenderBlock(kind="heading", body=line, language="2"))
                 continue
 
         command_like_count = sum(1 for line in lines if _COMMAND_LINE_RE.match(line))
@@ -135,7 +201,7 @@ def _parse_content_blocks(text: str) -> list[RenderBlock]:
 
 def _render_text_block(block: RenderBlock) -> str:
     raw_lines = [line.strip() for line in block.body.splitlines() if line.strip()]
-    escaped_lines = [latex_escape(line) for line in raw_lines]
+    escaped_lines = [_render_inline_markup(line) for line in raw_lines]
     if not escaped_lines:
         return ""
 
@@ -144,14 +210,14 @@ def _render_text_block(block: RenderBlock) -> str:
         joined = " \\\\\n".join(escaped_lines)
         return f"{joined}\\par"
 
-    joined = latex_escape(" ".join(raw_lines))
+    joined = _render_inline_markup(" ".join(raw_lines))
     return f"{joined}\\par"
 
 
 def _render_list_block(block: RenderBlock) -> str:
     environment = "itemize" if block.kind == "ulist" else "enumerate"
     lines = [line.strip() for line in block.body.splitlines() if line.strip()]
-    items = [rf"\item {latex_escape(line)}" for line in lines]
+    items = [rf"\item {_render_inline_markup(line)}" for line in lines]
 
     return "\n".join(
         [
@@ -164,7 +230,7 @@ def _render_list_block(block: RenderBlock) -> str:
 
 def _render_heading_block(block: RenderBlock) -> str:
     level = int(block.language) if block.language and block.language.isdigit() else 2
-    escaped = latex_escape(block.body.strip())
+    escaped = _render_inline_markup(block.body.strip())
     if level <= 1:
         return rf"\noindent\textbf{{\large {escaped}}}\par"
     if level == 2:
@@ -221,6 +287,11 @@ def _render_content_blocks(text: str) -> list[str]:
 
 
 def _render_article_header(article: ArticleContent, article_index: int, total_articles: int) -> str:
+    parsed = urlparse(article.url)
+    source_label = f"{parsed.netloc}{parsed.path}"
+    if len(source_label) > 44:
+        source_label = f"{source_label[:44]}..."
+
     return "\n".join(
         [
             r"\vspace{1.8mm}",
@@ -229,7 +300,7 @@ def _render_article_header(article: ArticleContent, article_index: int, total_ar
             rf"\noindent\textbf{{\large Article {article_index}/{total_articles}}}\hfill\texttt{{{article.status_id}}}\\",
             rf"\textbf{{{latex_escape(article.author_name)}}} {latex_escape(article.author_handle)}\\",
             rf"\textit{{Published:}} {latex_escape(_date_display(article.published_at))}\\",
-            rf"\textit{{Source:}} \url{{{article.url}}}",
+            rf"\textit{{Source:}} \href{{{article.url}}}{{\nolinkurl{{{latex_escape(source_label)}}}}}",
             r"\vspace{1.6mm}",
         ]
     )
@@ -291,6 +362,7 @@ def _article_block(
         body = "\n".join(
             [
                 rf"\begin{{multicols*}}{{{config.columns}}}",
+                r"\raggedright",
                 header,
                 _render_inline_flow(content_blocks, images),
                 r"\end{multicols*}",
@@ -302,6 +374,7 @@ def _article_block(
         body = "\n".join(
             [
                 rf"\begin{{multicols*}}{{{config.columns}}}",
+                r"\raggedright",
                 header,
                 "\n\n".join(content_blocks),
                 r"\end{multicols*}",
@@ -313,6 +386,7 @@ def _article_block(
     body = "\n".join(
         [
             rf"\begin{{multicols*}}{{{config.columns}}}",
+            r"\raggedright",
             header,
             "\n\n".join(content_blocks),
             r"\end{multicols*}",

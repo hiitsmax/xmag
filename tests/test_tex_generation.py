@@ -69,3 +69,21 @@ def test_render_issue_tex_renders_fenced_code_as_lstlisting(tmp_path: Path) -> N
 
     assert r"\begin{lstlisting}[language=Python]" in tex
     assert "print('hi')" in tex
+
+
+def test_render_issue_tex_renders_inline_markdown(tmp_path: Path) -> None:
+    contents = [
+        ArticleContent(
+            status_id="333",
+            url="https://x.com/x/status/333",
+            author_name="Name",
+            author_handle="@name",
+            published_at=datetime(2026, 2, 20, 15, 0, tzinfo=timezone.utc),
+            text="Read **this** and [source](https://example.com).",
+            media_urls=[],
+        )
+    ]
+    tex = render_issue_tex(contents, {"333": []}, LayoutConfig())
+
+    assert r"\textbf{this}" in tex
+    assert r"\href{https://example.com}{source}" in tex
